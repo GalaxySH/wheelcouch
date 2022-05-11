@@ -1,16 +1,17 @@
+//master
 #include <Arduino.h>
-#include <Servo.h>
 #include "PinDefinitionsAndMore.h"
 
 #define IRMP_PROTOCOL_NAMES              1 // Enable protocol number mapping to protocol strings - needs some FLASH. Must before #include <irmp*>
 #define IRMP_USE_COMPLETE_CALLBACK       1 // Enable callback functionality
-#define IRMP_ENABLE_PIN_CHANGE_INTERRUPT   // Enable interrupt functionality
+//#define IRMP_ENABLE_PIN_CHANGE_INTERRUPT   // Enable interrupt functionality
 
 #define IRMP_SUPPORT_NEC_PROTOCOL               1       // NEC + APPLE + ONKYO  >= 10000                 ~300 bytes
 #define IRMP_SUPPORT_SAMSUNG_PROTOCOL           1       // Samsung + Samsg32    >= 10000                 ~300 bytes
 #define IRMP_SUPPORT_KASEIKYO_PROTOCOL          1       // Kaseikyo             >= 10000                 ~250 bytes
 #define IRMP_SUPPORT_RC6_PROTOCOL               1       // RC6 & RC6A           >= 10000                 ~250 bytes
 #define IRMP_SUPPORT_DENON_PROTOCOL             1       // DENON, Sharp         >= 10000                 ~250 bytes
+//#define IRMP_INPUT_PIN 2
 
 #include <irmp.hpp>
 
@@ -19,17 +20,12 @@ int REVERSE = 0;
 int NEUTRAL = 90;//90// confirm that this is actually a neutral value
 int FORWARD = 180;
 int motors[2][2] {{9, 10}, {5, 6}};// left forward, left rear, right forward, right rear
-int speeds[2] {NEUTRAL, NEUTRAL};// left, right
 int fpow = 0;// initial forward power  (vector with values -1, 0, and 1)
 int lpow = 0;// initial lateral turning power (vector with values -1, 0, and 1)
 String lastPressed = "";
 IRMP_DATA irmp_data;
 bool sJustReceived;
 void handleReceivedIRData();
-Servo lfDrive;
-Servo lrDrive;
-Servo rfDrive;
-Servo rrDrive;
 
 /*
    Helper macro for getting a macro definition as string
@@ -101,22 +97,6 @@ void controlExec(String cmd) {
   }
 }
 
-void left() {
-  if (fpow == -1) {
-    speeds[0] = NEUTRAL;
-  } else {
-    speeds[1] = FORWARD;
-  }
-}
-
-void right() {
-  if (fpow == -1) {
-    speeds[1] = NEUTRAL;
-  } else {
-    speeds[0] = FORWARD;
-  }
-}
-
 void allStop() {
   lpow = 0;
   fpow = 0;
@@ -130,12 +110,6 @@ void setup() {
 
   // Just to know which program is running on my Arduino
 //  Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
-
-  //SERVO
-  lfDrive.attach(motors[0][0]);
-  lrDrive.attach(motors[0][1]);
-  rfDrive.attach(motors[1][0]);
-  rrDrive.attach(motors[1][1]);
 
   //IRRECEIVER
   pinMode(LED_BUILTIN, OUTPUT);
@@ -155,21 +129,5 @@ void loop() {
       irmp_result_print(&irmp_data); // this is not allowed in ISR context for any kind of RTOS
   }
 
-  switch (fpow) {
-    case -1: speeds[0] = FORWARD; speeds[1] = FORWARD; break;
-    case 0: speeds[0] = NEUTRAL; speeds[1] = NEUTRAL; break;
-    case 1: speeds[0] = REVERSE; speeds[1] = REVERSE; break;
-  }
-  switch (lpow) {
-    case -1: left(); break;
-    case 1: right(); break;
-    default: break;
-  }
-
-  lfDrive.write(speeds[0]);
-  lrDrive.write(speeds[0]);
-  rfDrive.write(speeds[1]);
-  rrDrive.write(speeds[1]);
-  
   //  Serial.println(String("left: ") + String(speeds[0]) + String(" right: ") + String(speeds[1]));
 }
