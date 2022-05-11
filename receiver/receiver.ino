@@ -1,6 +1,7 @@
 //master
 #include <Arduino.h>
 #include "PinDefinitionsAndMore.h"
+#include <SoftwareSerial.h>
 
 #define IRMP_PROTOCOL_NAMES              1 // Enable protocol number mapping to protocol strings - needs some FLASH. Must before #include <irmp*>
 #define IRMP_USE_COMPLETE_CALLBACK       1 // Enable callback functionality
@@ -16,12 +17,10 @@
 #include <irmp.hpp>
 
 /*-----( VARS )-----*/
-int REVERSE = 0;
-int NEUTRAL = 90;//90// confirm that this is actually a neutral value
-int FORWARD = 180;
-int motors[2][2] {{9, 10}, {5, 6}};// left forward, left rear, right forward, right rear
+SoftwareSerial mySerial(5,6);  //rx pin,tx pin
 int fpow = 0;// initial forward power  (vector with values -1, 0, and 1)
 int lpow = 0;// initial lateral turning power (vector with values -1, 0, and 1)
+int sounding = 0;
 String lastPressed = "";
 IRMP_DATA irmp_data;
 bool sJustReceived;
@@ -92,6 +91,12 @@ void controlExec(String cmd) {
     allStop();
   } else if (cmd == "FUNC/STOP") {
     return;//make functionality test function
+  } else if (cmd == "EQ") {
+    if (sounding) {
+      sounding = 0;
+    } else {
+      sounding = 1;
+    }
   } else {
     return;
   }
@@ -102,8 +107,24 @@ void allStop() {
   fpow = 0;
 }
 
+void sendData() {
+  mySerial.print("<");
+  //  for(int i = 0; i < sizeof(someArray) / sizeof(someArray[0]; i++)
+  //  {
+  //     Serial.print(someArray[i]);
+  //     Serial.print(",");
+  //  }
+  mySerial.print(fpow);
+  mySerial.print(",");
+  mySerial.print(lpow);
+  mySerial.print(",");
+  mySerial.print(sounding);
+  mySerial.print(">");
+}
+
 void setup() {
   Serial.begin(9600);   // Status message will be sent to PC at 9600 baud
+  mySerial.begin(9600);
 #if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
   delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
@@ -128,6 +149,6 @@ void loop() {
       sJustReceived = false;
       irmp_result_print(&irmp_data); // this is not allowed in ISR context for any kind of RTOS
   }
-
+  sendData();
   //  Serial.println(String("left: ") + String(speeds[0]) + String(" right: ") + String(speeds[1]));
 }

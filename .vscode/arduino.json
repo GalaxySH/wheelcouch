@@ -1,3 +1,5 @@
 {
-    "sketch": "couch.ino"
+    "sketch": "motor\\motor.ino",
+    "board": "arduino:avr:uno",
+    "port": "COM4"
 }
