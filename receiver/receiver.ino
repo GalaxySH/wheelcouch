@@ -17,14 +17,15 @@
 #include <irmp.hpp>
 
 /*-----( VARS )-----*/
-SoftwareSerial mySerial(5,6);  //rx pin,tx pin
-int fpow = 0;// initial forward power  (vector with values -1, 0, and 1)
-int lpow = 0;// initial lateral turning power (vector with values -1, 0, and 1)
+SoftwareSerial mySerial(0,1);  //rx pin,tx pin
+int fpow = 0;// initial forward power  (vector with values 0, 1, and 2)
+int lpow = 0;// initial lateral turning power (vector with values 0, 1, and 2)
 int sounding = 0;
 String lastPressed = "";
 IRMP_DATA irmp_data;
 bool sJustReceived;
 void handleReceivedIRData();
+int lastreceived = 0;
 
 /*
    Helper macro for getting a macro definition as string
@@ -36,18 +37,28 @@ void handleReceivedIRData();
 
 /*-----( FUNCS )-----*/
 void handleReceivedIRData() {
+  // int now = millis();
+  if (true/* (now - lastreceived) > 500 */) {
+    noInterrupts();// disable interrupts
     irmp_get_data(&irmp_data);
-#if defined(ARDUINO_ARCH_MBED) || defined(ESP32)
-    sJustReceived = true; // Signal new data for main loop, this is the recommended way for handling a callback :-)
-#else
     interrupts(); // enable interrupts
-    irmp_result_print(&irmp_data); // this is not allowed in ISR context for any kind of RTOS
-#endif
+    //irmp_result_print(&irmp_data);// this is not allowed in ISR context for any kind of RTOS
+    String cmd = translateIR();
+    Serial.print(cmd);
+    controlExec(cmd);
+    Serial.print(" ");
+    Serial.print(fpow);
+    Serial.print(" ");
+    Serial.print(lpow);
+    Serial.println();
+    sendData();
+    // lastreceived = now;
+  }
 }
 
 String translateIR() {
 //  uint32_t rawDat = IrReceiver.decodedIRData.decodedRawData;
-  Serial.println(irmp_data.command, HEX);
+  // Serial.println(irmp_data.command, HEX);
 
   switch (irmp_data.command) {
     case 0x45: return "POWER";
@@ -80,34 +91,42 @@ String translateIR() {
 
 void controlExec(String cmd) {
   if (cmd == "VOL+") {
-    fpow = 1;
+    fpow = 2;
+    lpow = 0;
   } else if (cmd == "FAST BACK") {
-    lpow = -1;
+    lpow = 0;
   } else if (cmd == "FAST FORWARD") {
-    lpow = 1;
+    lpow = 2;
   } else if (cmd == "VOL-") {
-    fpow = -1;
-  } else if (cmd == "POWER") {
+    fpow = 0;
+    lpow = 0;
+  } else if (cmd == "POWER" || cmd == "PAUSE") {
     allStop();
   } else if (cmd == "FUNC/STOP") {
     return;//make functionality test function
   } else if (cmd == "EQ") {
-    if (sounding) {
-      sounding = 0;
-    } else {
-      sounding = 1;
-    }
+    sounding = 1;
+  } else if (cmd == "ST/REPT") {
+    sounding = 0;
   } else {
     return;
   }
 }
 
 void allStop() {
-  lpow = 0;
-  fpow = 0;
+  lpow = 1;
+  fpow = 1;
 }
 
 void sendData() {
+  Serial.print("<");
+  Serial.print(fpow);
+  Serial.print(",");
+  Serial.print(lpow);
+  Serial.print(",");
+  Serial.print(sounding);
+  Serial.print(">");
+
   mySerial.print("<");
   //  for(int i = 0; i < sizeof(someArray) / sizeof(someArray[0]; i++)
   //  {
@@ -123,14 +142,14 @@ void sendData() {
 }
 
 void setup() {
-  Serial.begin(9600);   // Status message will be sent to PC at 9600 baud
-  mySerial.begin(9600);
+  Serial.begin(19200);   // Status message will be sent to PC at 9600 baud
+  mySerial.begin(19200);
 #if defined(__AVR_ATmega32U4__) || defined(SERIAL_PORT_USBVIRTUAL) || defined(SERIAL_USB) /*stm32duino*/|| defined(USBCON) /*STM32_stm32*/|| defined(SERIALUSB_PID) || defined(ARDUINO_attiny3217)
   delay(4000); // To be able to connect Serial monitor after reset or power up and before first print out. Do not wait for an attached Serial Monitor!
 #endif
 
   // Just to know which program is running on my Arduino
-//  Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
+  //  Serial.println(F("START " __FILE__ " from " __DATE__ "\r\nUsing library version " VERSION_IRREMOTE));
 
   //IRRECEIVER
   pinMode(LED_BUILTIN, OUTPUT);
@@ -145,10 +164,6 @@ void setup() {
 }
 
 void loop() {
-  if (sJustReceived) {
-      sJustReceived = false;
-      irmp_result_print(&irmp_data); // this is not allowed in ISR context for any kind of RTOS
-  }
-  sendData();
+  // sendData();// for whatever reason, this prevents handleReceivedIrData from running; it should really only be run when speeds update
   //  Serial.println(String("left: ") + String(speeds[0]) + String(" right: ") + String(speeds[1]));
 }

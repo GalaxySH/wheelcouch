@@ -4,10 +4,10 @@
 #include <math.h>
 #include <Servo.h>
 
-SoftwareSerial mySerial(5,6);  //rx pin,tx pin
+SoftwareSerial mySerial(0,1);  //rx pin,tx pin
 int motors[2][2] {{9, 10}, {5, 6}};// left forward, left rear, right forward, right rear
-int fpow = 0;// initial forward power  (vector with values -1, 0, and 1)
-int lpow = 0;// initial lateral turning power (vector with values -1, 0, and 1)
+int fpow = 0;// initial forward power  (vector with values 0, 1, and 2)
+int lpow = 0;// initial lateral turning power (vector with values 0, 1, and 2)
 int REVERSE = 0;
 int NEUTRAL = 90;//90// confirm that this is actually a neutral value
 int FORWARD = 180;
@@ -38,7 +38,7 @@ void recvdata() {
       recvchars[ndx] = c;
       recvinprogress = false;
       ndx = 0;
-      newdata = true;
+      // newdata = true;
     }
     if (recvinprogress == true) {
       recvchars[ndx] = c;
@@ -80,25 +80,29 @@ void readintonum(char* recvchars,int* dataarray){
 }
 
 void left() {
-  if (fpow == -1) {
-    speeds[0] = NEUTRAL;
+  if (fpow == 0) {
+    speeds[1] = NEUTRAL;
+    speeds[0] = REVERSE;
   } else {
+    speeds[0] = NEUTRAL;
     speeds[1] = FORWARD;
   }
 }
 
 void right() {
-  if (fpow == -1) {
-    speeds[1] = NEUTRAL;
+  if (fpow == 0) {
+    speeds[0] = NEUTRAL;
+    speeds[1] = REVERSE;
   } else {
+    speeds[1] = NEUTRAL;
     speeds[0] = FORWARD;
   }
 }
 
 void setup() {
   // put your setup code here, to run once:
-  mySerial.begin(28800);
-  Serial.begin(9600);
+  mySerial.begin(19200);
+  Serial.begin(19200);
 
   //SERVO
   lfDrive.attach(motors[0][0]);
@@ -109,7 +113,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(newdata==false){
+  if (newdata == false){
     recvdata();
     fpow = dataarray[0];
     lpow = dataarray[1];
@@ -117,13 +121,13 @@ void loop() {
   }
 
   switch (fpow) {
-    case -1: speeds[0] = FORWARD; speeds[1] = FORWARD; break;
-    case 0: speeds[0] = NEUTRAL; speeds[1] = NEUTRAL; break;
-    case 1: speeds[0] = REVERSE; speeds[1] = REVERSE; break;
+    case 2: speeds[0] = FORWARD; speeds[1] = FORWARD; break;
+    case 1: speeds[0] = NEUTRAL; speeds[1] = NEUTRAL; break;
+    case 0: speeds[0] = REVERSE; speeds[1] = REVERSE; break;
   }
   switch (lpow) {
-    case -1: left(); break;
-    case 1: right(); break;
+    case 0: left(); break;
+    case 2: right(); break;
     default: break;
   }
 

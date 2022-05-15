@@ -1,5 +1,5 @@
 {
-    "sketch": "motor\\motor.ino",
+    "sketch": "receiver\\receiver.ino",
     "board": "arduino:avr:uno",
-    "port": "COM4"
+    "port": "COM3"
 }
